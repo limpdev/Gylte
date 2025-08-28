@@ -1,6 +1,7 @@
 #app {
     height: 100vh;
     text-align: center;
+    border-radius: 0.2em;
 }
 
 #logo {

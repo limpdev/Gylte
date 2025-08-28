@@ -15,6 +15,7 @@ html,
 body>* {
     cursor: auto;
     text-rendering: geometricPrecision !important;
+    border-radius: 0.2em;
 }
 
 /* HIDE SCROLLBAR */
