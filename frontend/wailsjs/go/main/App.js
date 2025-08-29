@@ -5,3 +5,15 @@
 export function CopyToClipboard(arg1) {
   return window['go']['main']['App']['CopyToClipboard'](arg1);
 }
+
+export function GetAllGlyphs() {
+  return window['go']['main']['App']['GetAllGlyphs']();
+}
+
+export function LoadGlyphsFromJSON(arg1) {
+  return window['go']['main']['App']['LoadGlyphsFromJSON'](arg1);
+}
+
+export function SearchGlyphs(arg1) {
+  return window['go']['main']['App']['SearchGlyphs'](arg1);
+}
