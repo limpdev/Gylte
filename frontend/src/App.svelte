@@ -1,8 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import glyphData from "./glyphs.json";
     import AniToast from "./comps/aniToast.svelte";
-    import { CopyToClipboard } from "../wailsjs/go/main/App";
+    import { CopyToClipboard, GetGlyphs } from "../wailsjs/go/main/App";
     import { WindowMinimise, Quit } from "../wailsjs/runtime";
 
     // Define the type for a single glyph object
@@ -12,26 +11,23 @@
     }
 
     let searchTerm = "";
-    let filteredGlyphs: Glyph[] = [];
+    let glyphs: Glyph[] = [];
     let toastVisible = false;
 
-    // Load all glyphs on initial render and remove duplicates
-    onMount(() => {
-        // Remove duplicates by name, keeping the first occurrence
-        const uniqueGlyphs = glyphData.filter((item, index, self) => index === self.findIndex((g) => g.name === item.name));
-        filteredGlyphs = uniqueGlyphs;
+    // Load all glyphs on initial render
+    onMount(async () => {
+        glyphs = await GetGlyphs("");
     });
 
-    // Reactive statement to filter glyphs when search term changes
-    $: {
-        const sourceData = glyphData.filter((item, index, self) => index === self.findIndex((g) => g.name === item.name));
+    // Function to handle searching
+    const handleSearch = async () => {
+        glyphs = await GetGlyphs(searchTerm);
+    };
 
-        if (searchTerm.trim() === "") {
-            filteredGlyphs = sourceData;
-        } else {
-            const lowercasedFilter = searchTerm.toLowerCase();
-            filteredGlyphs = sourceData.filter((item) => item.name.toLowerCase().includes(lowercasedFilter));
-        }
+    // Reactive statement to trigger search when searchTerm changes
+    $: {
+        const timeout = setTimeout(handleSearch, 300); // Debounce input
+        () => clearTimeout(timeout);
     }
 
     const handleGlyphClick = (glyph: string) => {
@@ -57,17 +53,24 @@
 
     <!-- Search Input -->
     <div class="search-container draggable">
-        <input type="text" autocomplete="on" class="search-input" placeholder="" bind:value={searchTerm} />
+        <input
+            type="text"
+            autocomplete="on"
+            class="search-input"
+            placeholder=""
+            bind:value={searchTerm}
+        />
     </div>
 
     <!-- Glyph Grid -->
     <div class="glyph-grid draggable">
-        {#each filteredGlyphs as item, index (index)}
+        {#each glyphs as item, index (index)}
             <div
                 class="glyph-card"
                 title={`Click to copy "${item.glyph}"`}
                 on:click={() => handleGlyphClick(item.glyph)}
-                on:keydown={(e) => e.key === "Enter" && handleGlyphClick(item.glyph)}
+                on:keydown={(e) =>
+                    e.key === "Enter" && handleGlyphClick(item.glyph)}
                 role="button"
                 tabindex="0"
             >
@@ -80,8 +83,12 @@
     <!-- "Copied!" Toast Notification -->
     {#if toastVisible}
         <div class="toast">
-            <!-- IMPORT THE SVG FOR THE TOAST HERE AS A COMPONENT -->
-            <AniToast width="12" height="12" fill="#45a847" class="animatedToast" />
+            <AniToast
+                width="12"
+                height="12"
+                fill="#45a847"
+                class="animatedToast"
+            />
         </div>
     {/if}
 </div>

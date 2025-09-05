@@ -5,3 +5,7 @@
 export function CopyToClipboard(arg1) {
   return window['go']['main']['App']['CopyToClipboard'](arg1);
 }
+
+export function GetGlyphs(arg1) {
+  return window['go']['main']['App']['GetGlyphs'](arg1);
+}
