@@ -4,12 +4,4 @@ import {main} from '../models';
 
 export function CopyToClipboard(arg1:string):Promise<void>;
 
-<<<<<<< HEAD
 export function GetGlyphs(arg1:string):Promise<Array<main.Glyph>>;
-=======
-export function GetAllGlyphs():Promise<Array<main.Glyph>>;
-
-export function LoadGlyphsFromJSON(arg1:string):Promise<void>;
-
-export function SearchGlyphs(arg1:string):Promise<Array<main.Glyph>>;
->>>>>>> 6021e9c552a01e92c7674f270c3248a24c1ebf42

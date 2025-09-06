@@ -26,10 +26,11 @@ body::-webkit-scrollbar {
 :root {
     --font-main: "Inter18NF", sans-serif;
     --font-nerd: "SFMono Nerd Font", sans-serif;
+    --fonthead: "Arsenal SC", "Symbols Nerd Font", sans-serif;
     /* Fallback fonts */
     --jpmblue: #083c49;
     --darkcanvas: #181b24ec;
-    --metaicons: #d8c4b7;
+    --metaicons: #8b8b8b;
     --bg-color: #0d1014;
     --primary-color: var(--darkcanvas);
     --secondary-color: var(--jpmblue);
@@ -60,39 +61,41 @@ body {
     align-items: center;
     position: fixed;
     right: 0.25em;
-    height: 30px;
+    height: 26px;
     padding: 0 8px;
     color: #aeb4c0aa;
     border: 1px solid inherit;
     font-size: 17px;
     user-select: none;
     flex-shrink: 0;
-    --wails-draggable: drag;
     z-index: 1000; /* Keep this to ensure it stays on top */
 }
 .title-bar .title {
     position: fixed;
     left: 0.1em;
     color: var(--metaicons);
-    font-weight: 560;
-    font-size: 1.25em;
-    font-family: "Arsenal SC", "Symbols Nerd Font", sans-serif;
+    font-weight: 510;
+    font-family: var(--fonthead);
     padding: 0.4em;
-    padding-right: 0.5em;
-    -webkit-writing-mode: vertical-lr;
+    margin-top: 1.2em;
+    /* writing-mode: vertical-lr; */
+    /* -webkit-writing-mode: vertical-lr; */
 }
 .title {
-    width: 1em;
-    background: rgba(05, 05, 05, 0.65);
+    background: rgba(05, 05, 05, 0.55);
     backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px); /* For Safari compatibility */
-    border-radius: 9px;
-    margin-left: 5px;
-    margin-top: 1.1em;
+    -webkit-backdrop-filter: blur(12px); /* Safari */
+    border-radius: 6px;
+    margin-left: 0.5em;
+    margin-top: 1.2em;
     transition: all 210ms ease;
 }
 .title:hover {
     color: var(--jpmblue);
+    cursor: grab;
+}
+.title:active {
+    cursor: grabbing;
 }
 .spacer {
     flex-grow: 1;
@@ -105,37 +108,36 @@ body {
     margin-left: auto;
     background: rgba(05, 05, 05, 0.65);
     backdrop-filter: blur(12px);
-    border-radius: 9px;
+    border-radius: 6px;
 }
 .window-controls.s-XsEmFtvddWTw {
     display: flex;
     /* correct value */
     justify-content: flex-end;
-    padding-right: 8px;
     margin-top: 1.2em;
 }
 .window-controls button {
+    width: 25px;
     background: none;
     border: none;
     color: var(--text-color);
     font-size: 19px;
     cursor: pointer;
-    padding: 6px;
-    border-radius: 9px;
+    padding: 0.3em;
+    border-radius: 6px;
     line-height: 1;
     transition: all 160ms ease;
     color: var(--metaicons);
 }
 .window-controls button:hover {
-    transform: scale(1.1)
-               translateY(-3px);
+    transform: scale(1.12);
     color: var(--text-color);  
     background-color: var(--secondary-color);
 }
 
 /* --- Search Bar --- */
 .search-container {
-    padding: 16px;
+    padding: 15px;
     background-color: var(--primary-color);
     border-bottom: 0px solid var(--secondary-color);
     cursor: grab;
@@ -157,14 +159,21 @@ body {
     text-align: center;
     outline: none;
     caret-color: #00000000;
-    transition: all 160ms ease;
+    transition: all 265ms ease;
+}
+
+.search-input:hover {
+    transform: scale(1.2);
+    background: rgba(5, 5, 5, 0.45);
+    transition: all 265ms ease;
 }
 
 .search-input:focus {
     outline: none;
     caret-color: #00000000;
     cursor: pointer;
-    transform: scale(1.3);
+    transform: scale(1.2);
+    text-align: left;
     /* border-color: var(--highlight-color); */
 }
 
