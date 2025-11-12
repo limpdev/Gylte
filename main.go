@@ -6,6 +6,8 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 //go:embed all:frontend/dist
@@ -17,20 +19,48 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "Gylte",
-		Width:  500,
-		Height: 720,
+		Title:       "Gylte",
+		Width:       572,
+		Height:      900,
+		Frameless:   false,
+		AlwaysOnTop: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		Frameless:        true,
-		BackgroundColour: &options.RGBA{R: 19, G: 19, B: 19, A: 50},
+		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 18, A: 00},
 		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
 		Bind: []interface{}{
 			app,
 		},
-		CSSDragProperty: "--wails-draggable",
-		CSSDragValue:    "drag",
+		Windows: &windows.Options{
+			WebviewIsTransparent:              false,
+			WindowIsTranslucent:               false,
+			BackdropType:                      windows.Mica,
+			DisablePinchZoom:                  false,
+			DisableWindowIcon:                 false,
+			DisableFramelessWindowDecorations: true,
+			WebviewUserDataPath:               "",
+			WebviewBrowserPath:                "",
+			Theme:                             windows.SystemDefault,
+		},
+		Mac: &mac.Options{
+			TitleBar: &mac.TitleBar{
+				TitlebarAppearsTransparent: true,
+				HideTitle:                  true,
+				HideTitleBar:               true,
+				FullSizeContent:            false,
+				UseToolbar:                 false,
+				HideToolbarSeparator:       true,
+			},
+			Appearance:           mac.NSAppearanceNameDarkAqua,
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  true,
+			About: &mac.AboutInfo{
+				Title:   "Gylte",
+				Message: "© 2025 Limp Cheney",
+			},
+		},
 	})
 
 	if err != nil {
