@@ -1,7 +1,53 @@
-build/bin
-node_modules
-frontend/dist
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Env / Secrets ---
+.env
+.env.*.local
+
+# --- Build outputs ---
+dist/
+build/
+.out/
+.next/
+.svelte-kit/
+.vite/
+
+# --- OS trash you never wanted ---
+# Windows
 desktop.ini
-Desktop.ini
-Icon
+Thumbs.db
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 Icon?
+._*
+
+# --- IDEs / Editors ---
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# JetBrains
+.idea/
+
+# --- Misc ---
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Lockfiles you may or may not want to commit
+# Uncomment if you hate deterministic builds
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
