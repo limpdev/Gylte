@@ -1,6 +1,4 @@
 /* Make sure you have a Nerd Font installed! */
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap");
-
 /* ===== CSS VARIABLES ===== */
 :root {
   --font-main: Finder, "Symbols Nerd Font", sans-serif;
@@ -31,8 +29,8 @@ body {
   background-color: transparent;
   color: var(--text-color);
   font-family: var(--font-main);
-  font-weight: 400;
-  text-rendering: geometricPrecision;
+  font-weight: 500;
+  text-rendering: optimizeLegibility;
   cursor: auto;
 }
 
@@ -158,9 +156,9 @@ button {
 
 /* ===== SEARCH BAR ===== */
 .search-container {
-  margin-top: 30px;
+  margin-top: 20px;
   padding: 5px;
-  background-color: #181b240;
+  background-color: #181b24;
   border-bottom: 0px solid #083c49;
   text-align: center;
   -webkit-app-region: drag;
@@ -187,7 +185,7 @@ button {
   background: rgba(5, 5, 5, 0.45);
 }
 
-.search-input:focus {
+.search-input:focus .search-input[placeholder=""]:focus {
   transform: scale(1.2);
   text-align: center;
   caret-color: #c5c8c6;
@@ -348,6 +346,7 @@ button {
   transition: opacity 0.2s;
   padding: 4px;
   color: #ffd700;
+  z-index: 10;
 }
 
 .favorite-btn:hover,

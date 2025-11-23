@@ -22,7 +22,7 @@ func main() {
 		Title:       "Gylte",
 		Width:       572,
 		Height:      900,
-		Frameless:   false,
+		Frameless:   true,
 		AlwaysOnTop: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
@@ -30,19 +30,20 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 18, A: 00},
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
+		CSSDragProperty:  "--wails-draggable",
+		CSSDragValue:     "drag",
 		Bind: []interface{}{
 			app,
 		},
 		Windows: &windows.Options{
-			WebviewIsTransparent:              false,
-			WindowIsTranslucent:               false,
+			WebviewIsTransparent:              true,
+			WindowIsTranslucent:               true,
 			BackdropType:                      windows.Mica,
-			DisablePinchZoom:                  false,
-			DisableWindowIcon:                 false,
+			DisablePinchZoom:                  true,
+			DisableWindowIcon:                 true,
 			DisableFramelessWindowDecorations: true,
 			WebviewUserDataPath:               "",
 			WebviewBrowserPath:                "",
-			Theme:                             windows.SystemDefault,
 		},
 		Mac: &mac.Options{
 			TitleBar: &mac.TitleBar{
