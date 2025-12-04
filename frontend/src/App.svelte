@@ -86,7 +86,7 @@
         searchTerm,
         selectedCategory,
         LIMIT,
-        currentOffset
+        currentOffset,
       );
 
       if (reset) {
@@ -121,7 +121,7 @@
       await ToggleFavorite(glyphId);
 
       filteredGlyphs = filteredGlyphs.map((g) =>
-        g.id === glyphId ? { ...g, isFavorite: !g.isFavorite } : g
+        g.id === glyphId ? { ...g, isFavorite: !g.isFavorite } : g,
       );
 
       stats = await GetStats();
@@ -192,6 +192,11 @@
 
   // Reactive search with debouncing
   $: {
+    // FIX: We explicitly reference searchTerm here.
+    // This registers it as a dependency, forcing Svelte to re-run
+    // this block whenever the search input changes.
+    const _ = searchTerm;
+
     if (searchTimeout) clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       if (!viewingFavorites) {

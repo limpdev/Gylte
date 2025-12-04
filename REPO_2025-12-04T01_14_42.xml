@@ -1,0 +1,1671 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where empty lines have been removed.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: **/*.go,**/*.js,**/*.ts,**/*.css,**/*.html,**/*.yaml,**/*.toml,**/*.xml,**/*.bat,**/*.sh,**/*.py, **/*.go, **/*.svelte
+- Files matching these patterns are excluded: node_modules,**/node_modules
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Empty lines have been removed from all files
+- Long base64 data strings (e.g., data:image/png;base64,...) have been truncated to reduce token count
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+darwin/
+db_generator/
+frontend/
+frontend/.vscode/
+frontend/dist/
+frontend/src/
+frontend/src/assets/
+frontend/src/assets/fonts/
+frontend/src/assets/images/
+frontend/src/comps/
+frontend/wailsjs/
+frontend/wailsjs/go/
+frontend/wailsjs/go/main/
+frontend/wailsjs/runtime/
+.gitignore
+app.go
+darwin/Info.dev.plist
+darwin/Info.plist
+db_generator/dbgen.go
+db_generator/glyphs.json
+frontend/.vscode/extensions.json
+frontend/index.html
+frontend/jsconfig.json
+frontend/package.json
+frontend/package.json.md5
+frontend/README.md
+frontend/src/App.svelte
+frontend/src/assets/fonts/nunito-v16-latin-regular.woff2
+frontend/src/assets/fonts/OFL.txt
+frontend/src/assets/images/logo-universal.png
+frontend/src/comps/aniToast.svelte
+frontend/src/comps/mono-nf.webp
+frontend/src/comps/monogram-nf.jpg
+frontend/src/comps/monogram-nf.svg
+frontend/src/glyphs.json
+frontend/src/main.ts
+frontend/src/style.css
+frontend/src/vite-env.d.ts
+frontend/svelte.config.js
+frontend/tsconfig.node.json
+frontend/vite.config.js
+frontend/wailsjs/go/main/App.d.ts
+frontend/wailsjs/go/main/App.js
+frontend/wailsjs/go/models.ts
+frontend/wailsjs/runtime/package.json
+frontend/wailsjs/runtime/runtime.d.ts
+frontend/wailsjs/runtime/runtime.js
+go.mod
+GOLANG.md
+gylte.db
+LICENSE
+main.go
+README.md
+repomix-output.md
+REPOMIX.md
+wails.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="db_generator/dbgen.go">
+package main
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+	_ "modernc.org/sqlite"
+)
+type Glyph struct {
+	Name  string `json:"name"`
+	Glyph string `json:"glyph"`
+}
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+func run() error {
+	log.Println("Starting database generation...")
+	// Read and parse JSON
+	glyphs, err := loadGlyphs("glyphs.json")
+	if err != nil {
+		return fmt.Errorf("loading glyphs: %w", err)
+	}
+	log.Printf("Loaded %d glyphs from JSON", len(glyphs))
+	// Initialize database
+	db, err := initDB("../gylte.db")
+	if err != nil {
+		return fmt.Errorf("initializing database: %w", err)
+	}
+	defer db.Close()
+	// Populate database
+	if err := populateDB(db, glyphs); err != nil {
+		return fmt.Errorf("populating database: %w", err)
+	}
+	// Generate statistics
+	stats, err := generateStats(db)
+	if err != nil {
+		return fmt.Errorf("generating stats: %w", err)
+	}
+	log.Println("\n=== Database Generation Complete ===")
+	log.Printf("Total glyphs: %d", stats["total"])
+	log.Printf("Unique categories: %d", stats["categories"])
+	log.Printf("Database file: ../gylte.db")
+	// Print top categories
+	log.Println("\nTop 10 categories:")
+	topCats, _ := getTopCategories(db, 10)
+	for i, cat := range topCats {
+		log.Printf("  %d. %s: %d glyphs", i+1, cat.Name, cat.Count)
+	}
+	return nil
+}
+func loadGlyphs(filename string) ([]Glyph, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("reading file: %w", err)
+	}
+	var glyphs []Glyph
+	if err := json.Unmarshal(data, &glyphs); err != nil {
+		return nil, fmt.Errorf("parsing JSON: %w", err)
+	}
+	return glyphs, nil
+}
+func initDB(filename string) (*sql.DB, error) {
+	// Remove old database if exists
+	os.Remove(filename)
+	db, err := sql.Open("sqlite", filename)
+	if err != nil {
+		return nil, err
+	}
+	// Create schema with enhanced metadata
+	schema := `
+	PRAGMA journal_mode = WAL;
+	PRAGMA synchronous = NORMAL;
+	PRAGMA cache_size = 10000;
+	PRAGMA temp_store = MEMORY;
+	CREATE TABLE IF NOT EXISTS glyphs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE,
+		glyph TEXT NOT NULL,
+		category TEXT,
+		prefix TEXT,
+		normalized_name TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	-- Indexes for fast searching
+	CREATE INDEX IF NOT EXISTS idx_name ON glyphs(name);
+	CREATE INDEX IF NOT EXISTS idx_category ON glyphs(category);
+	CREATE INDEX IF NOT EXISTS idx_prefix ON glyphs(prefix);
+	CREATE INDEX IF NOT EXISTS idx_normalized ON glyphs(normalized_name);
+	-- Full-text search support
+	CREATE VIRTUAL TABLE IF NOT EXISTS glyphs_fts USING fts5(
+		name, 
+		category,
+		content='glyphs',
+		content_rowid='id'
+	);
+	-- Triggers to keep FTS in sync
+	CREATE TRIGGER IF NOT EXISTS glyphs_ai AFTER INSERT ON glyphs BEGIN
+		INSERT INTO glyphs_fts(rowid, name, category)
+		VALUES (new.id, new.name, new.category);
+	END;
+	CREATE TRIGGER IF NOT EXISTS glyphs_ad AFTER DELETE ON glyphs BEGIN
+		DELETE FROM glyphs_fts WHERE rowid = old.id;
+	END;
+	CREATE TRIGGER IF NOT EXISTS glyphs_au AFTER UPDATE ON glyphs BEGIN
+		UPDATE glyphs_fts SET name = new.name, category = new.category
+		WHERE rowid = new.id;
+	END;
+	-- Metadata table for app info
+	CREATE TABLE IF NOT EXISTS metadata (
+		key TEXT PRIMARY KEY,
+		value TEXT,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+	if _, err := db.Exec(schema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("creating schema: %w", err)
+	}
+	return db, nil
+}
+func extractMetadata(name string) (category, prefix, normalized string) {
+	// Split on hyphens: "nf-cod-account" -> ["nf", "cod", "account"]
+	parts := strings.Split(name, "-")
+	if len(parts) >= 1 {
+		prefix = parts[0] // "nf"
+	}
+	if len(parts) >= 2 {
+		category = parts[1] // "cod"
+	}
+	// Normalized name without prefix (for better searching)
+	if len(parts) > 1 {
+		normalized = strings.Join(parts[1:], " ")
+	} else {
+		normalized = name
+	}
+	return
+}
+func populateDB(db *sql.DB, glyphs []Glyph) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare(`
+		INSERT INTO glyphs(name, glyph, category, prefix, normalized_name) 
+		VALUES(?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	duplicates := 0
+	for i, glyph := range glyphs {
+		category, prefix, normalized := extractMetadata(glyph.Name)
+		_, err := stmt.Exec(
+			glyph.Name,
+			glyph.Glyph,
+			category,
+			prefix,
+			normalized,
+		)
+		if err != nil {
+			if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				duplicates++
+				continue
+			}
+			return fmt.Errorf("inserting glyph %s: %w", glyph.Name, err)
+		}
+		// Progress indicator
+		if (i+1)%1000 == 0 {
+			log.Printf("Processed %d/%d glyphs...", i+1, len(glyphs))
+		}
+	}
+	if duplicates > 0 {
+		log.Printf("Skipped %d duplicate glyphs", duplicates)
+	}
+	// Store metadata
+	_, err = tx.Exec(`
+		INSERT OR REPLACE INTO metadata(key, value) 
+		VALUES('last_updated', datetime('now'))
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`
+		INSERT OR REPLACE INTO metadata(key, value) 
+		VALUES('version', '1.0')
+	`)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+func generateStats(db *sql.DB) (map[string]int, error) {
+	stats := make(map[string]int)
+	var total, categories, prefixes int
+	// Total glyphs
+	if err := db.QueryRow("SELECT COUNT(*) FROM glyphs").Scan(&total); err != nil {
+		return nil, err
+	}
+	// Unique categories
+	if err := db.QueryRow("SELECT COUNT(DISTINCT category) FROM glyphs WHERE category != ''").Scan(&categories); err != nil {
+		return nil, err
+	}
+	// Unique prefixes
+	if err := db.QueryRow("SELECT COUNT(DISTINCT prefix) FROM glyphs WHERE prefix != ''").Scan(&prefixes); err != nil {
+		return nil, err
+	}
+	stats["total"] = total
+	stats["categories"] = categories
+	stats["prefixes"] = prefixes
+	return stats, nil
+}
+type CategoryStats struct {
+	Name  string
+	Count int
+}
+func getTopCategories(db *sql.DB, limit int) ([]CategoryStats, error) {
+	rows, err := db.Query(`
+		SELECT category, COUNT(*) as count 
+		FROM glyphs 
+		WHERE category != '' 
+		GROUP BY category 
+		ORDER BY count DESC 
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var categories []CategoryStats
+	for rows.Next() {
+		var cat CategoryStats
+		if err := rows.Scan(&cat.Name, &cat.Count); err != nil {
+			return nil, err
+		}
+		categories = append(categories, cat)
+	}
+	return categories, rows.Err()
+}
+</file>
+
+<file path="frontend/src/comps/aniToast.svelte">
+<script>
+    export let width = "24";
+    export let height = "24";
+    export let fill = "{fill}";
+    export let customClass = "animatedToast"; // Use a different name to avoid conflict with the class attribute
+</script>
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={width}
+    height={height}
+    viewBox="0 0 24 24"
+    {...$$props}
+>
+    <rect width="7.33" height="7.33" x="1" y="1" {fill}>
+        <animate
+            id="SVGzjrPLenI"
+            attributeName="x"
+            begin="0;SVGXAURnSRI.end+0.25s"
+            dur="0.75s"
+            values="1;4;1"
+        />
+        <animate
+            attributeName="y"
+            begin="0;SVGXAURnSRI.end+0.25s"
+            dur="0.75s"
+            values="1;4;1"
+        />
+        <animate
+            attributeName="width"
+            begin="0;SVGXAURnSRI.end+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="0;SVGXAURnSRI.end+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="8.33" y="1" {fill}>
+        <animate
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="8.33;11.33;8.33"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="1;4;1"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="1" y="8.33" {fill}>
+        <animate
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="1;4;1"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="8.33;11.33;8.33"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.125s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="15.66" y="1" {fill}>
+        <animate
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="15.66;18.66;15.66"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="1;4;1"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="8.33" y="8.33" {fill}>
+        <animate
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="8.33;11.33;8.33"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="8.33;11.33;8.33"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="1" y="15.66" {fill}>
+        <animate
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="1;4;1"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="15.66;18.66;15.66"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.25s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="15.66" y="8.33" {fill}>
+        <animate
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="15.66;18.66;15.66"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="8.33;11.33;8.33"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="8.33" y="15.66" {fill}>
+        <animate
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="8.33;11.33;8.33"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="15.66;18.66;15.66"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.375s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+    <rect width="7.33" height="7.33" x="15.66" y="15.66" {fill}>
+        <animate
+            id="SVGXAURnSRI"
+            attributeName="x"
+            begin="SVGzjrPLenI.begin+0.5s"
+            dur="0.75s"
+            values="15.66;18.66;15.66"
+        />
+        <animate
+            attributeName="y"
+            begin="SVGzjrPLenI.begin+0.5s"
+            dur="0.75s"
+            values="15.66;18.66;15.66"
+        />
+        <animate
+            attributeName="width"
+            begin="SVGzjrPLenI.begin+0.5s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+        <animate
+            attributeName="height"
+            begin="SVGzjrPLenI.begin+0.5s"
+            dur="0.75s"
+            values="7.33;1.33;7.33"
+        />
+    </rect>
+</svg>
+</file>
+
+<file path="app.go">
+package main
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+	_ "modernc.org/sqlite"
+)
+// App struct
+type App struct {
+	ctx        context.Context
+	db         *sql.DB
+	cache      *GlyphCache
+	history    *SearchHistory
+	favorites  *Favorites
+	categories *CategoryManager
+}
+// Glyph struct for database results
+type Glyph struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Glyph    string `json:"glyph"`
+	Category string `json:"category,omitempty"`
+	Tags     string `json:"tags,omitempty"`
+}
+// GlyphMatch represents a glyph with its fuzzy match score
+type GlyphMatch struct {
+	Glyph
+	Score      int  `json:"score"`
+	IsFavorite bool `json:"isFavorite"`
+}
+// GlyphCache provides in-memory caching for faster searches
+type GlyphCache struct {
+	mu     sync.RWMutex
+	glyphs []Glyph
+	loaded bool
+}
+// SearchHistory tracks recent searches
+type SearchHistory struct {
+	mu      sync.RWMutex
+	history []string
+	maxSize int
+}
+// Favorites manages user favorites
+type Favorites struct {
+	mu        sync.RWMutex
+	favorites map[int]bool
+	db        *sql.DB
+}
+// CategoryManager handles glyph categorization
+type CategoryManager struct {
+	mu         sync.RWMutex
+	categories map[string][]int
+}
+// SearchResult wraps results with metadata
+type SearchResult struct {
+	Glyphs     []GlyphMatch `json:"glyphs"`
+	Total      int          `json:"total"`
+	SearchTime float64      `json:"searchTime"`
+	HasMore    bool         `json:"hasMore"`
+	Categories []string     `json:"categories,omitempty"`
+}
+// NewApp creates a new App application struct
+func NewApp() *App {
+	return &App{
+		cache:      &GlyphCache{},
+		history:    &SearchHistory{maxSize: 20},
+		favorites:  &Favorites{favorites: make(map[int]bool)},
+		categories: &CategoryManager{categories: make(map[string][]int)},
+	}
+}
+// startup is called when the app starts
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
+	var err error
+	a.db, err = sql.Open("sqlite", "./gylte.db")
+	if err != nil {
+		log.Printf("Failed to open database: %v", err)
+		return
+	}
+	// Initialize favorites table
+	if err := a.initFavoritesTable(); err != nil {
+		log.Printf("Failed to initialize favorites: %v", err)
+	}
+	a.favorites.db = a.db
+	// Preload cache in background
+	go a.preloadCache()
+	// Load favorites
+	go a.loadFavorites()
+	log.Println("App started successfully")
+}
+// shutdown cleanup
+func (a *App) shutdown(ctx context.Context) {
+	if a.db != nil {
+		a.db.Close()
+	}
+}
+// initFavoritesTable creates the favorites table if it doesn't exist
+func (a *App) initFavoritesTable() error {
+	_, err := a.db.Exec(`
+		CREATE TABLE IF NOT EXISTS favorites (
+			glyph_id INTEGER PRIMARY KEY,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE INDEX IF NOT EXISTS idx_favorites_created ON favorites(created_at);
+	`)
+	return err
+}
+// preloadCache loads all glyphs into memory
+func (a *App) preloadCache() {
+	rows, err := a.db.Query("SELECT id, name, glyph FROM glyphs ORDER BY name")
+	if err != nil {
+		log.Printf("Failed to preload cache: %v", err)
+		return
+	}
+	defer rows.Close()
+	a.cache.mu.Lock()
+	defer a.cache.mu.Unlock()
+	a.cache.glyphs = nil
+	for rows.Next() {
+		var g Glyph
+		if err := rows.Scan(&g.ID, &g.Name, &g.Glyph); err != nil {
+			log.Printf("Error scanning glyph: %v", err)
+			continue
+		}
+		a.cache.glyphs = append(a.cache.glyphs, g)
+		// Extract category from name (e.g., "nf-cod-account" -> "cod")
+		a.categorizeGlyph(&g)
+	}
+	a.cache.loaded = true
+	log.Printf("Cache loaded: %d glyphs", len(a.cache.glyphs))
+}
+// categorizeGlyph extracts category from glyph name
+func (a *App) categorizeGlyph(g *Glyph) {
+	parts := strings.Split(g.Name, "-")
+	if len(parts) >= 2 {
+		category := parts[1] // e.g., "nf-cod-account" -> "cod"
+		a.categories.mu.Lock()
+		a.categories.categories[category] = append(a.categories.categories[category], g.ID)
+		a.categories.mu.Unlock()
+	}
+}
+// loadFavorites loads favorites from database
+func (a *App) loadFavorites() {
+	rows, err := a.db.Query("SELECT glyph_id FROM favorites")
+	if err != nil {
+		log.Printf("Failed to load favorites: %v", err)
+		return
+	}
+	defer rows.Close()
+	a.favorites.mu.Lock()
+	defer a.favorites.mu.Unlock()
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		a.favorites.favorites[id] = true
+	}
+	log.Printf("Loaded %d favorites", len(a.favorites.favorites))
+}
+// fuzzyMatch implements fzf-style fuzzy matching
+func fuzzyMatch(pattern, text string) (int, bool) {
+	pattern = strings.ToLower(pattern)
+	text = strings.ToLower(text)
+	if pattern == "" {
+		return 0, true
+	}
+	// Exact match gets highest score
+	if pattern == text {
+		return 10000, true
+	}
+	// Exact substring match
+	if idx := strings.Index(text, pattern); idx != -1 {
+		score := 5000
+		if idx == 0 {
+			score += 2000 // Bonus for prefix match
+		}
+		score -= len(text) * 2 // Penalty for length
+		return score, true
+	}
+	// Fuzzy matching
+	score := 0
+	textIdx := 0
+	consecutiveMatches := 0
+	lastMatchIdx := -1
+	for i := 0; i < len(pattern); i++ {
+		found := false
+		for textIdx < len(text) {
+			if pattern[i] == text[textIdx] {
+				found = true
+				score += 100
+				// Bonus for consecutive matches
+				if textIdx == lastMatchIdx+1 {
+					consecutiveMatches++
+					score += consecutiveMatches * 50
+				} else {
+					consecutiveMatches = 0
+				}
+				// Bonus for word boundary matches
+				if textIdx == 0 || text[textIdx-1] == '-' || text[textIdx-1] == '_' {
+					score += 200
+				}
+				lastMatchIdx = textIdx
+				textIdx++
+				break
+			}
+			textIdx++
+		}
+		if !found {
+			return 0, false
+		}
+	}
+	// Penalty for length difference
+	score -= (len(text) - len(pattern)) * 3
+	return score, true
+}
+// GetGlyphs retrieves glyphs with advanced filtering
+func (a *App) GetGlyphs(searchTerm string, category string, limit int, offset int) (*SearchResult, error) {
+	startTime := time.Now()
+	// Wait for cache to load if not ready
+	for i := 0; i < 50 && !a.cache.loaded; i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+	a.cache.mu.RLock()
+	allGlyphs := a.cache.glyphs
+	a.cache.mu.RUnlock()
+	if len(allGlyphs) == 0 {
+		return &SearchResult{Glyphs: []GlyphMatch{}, Total: 0}, nil
+	}
+	// Filter by category if specified
+	var filtered []Glyph
+	if category != "" {
+		a.categories.mu.RLock()
+		categoryIDs := a.categories.categories[category]
+		a.categories.mu.RUnlock()
+		idMap := make(map[int]bool)
+		for _, id := range categoryIDs {
+			idMap[id] = true
+		}
+		for _, g := range allGlyphs {
+			if idMap[g.ID] {
+				filtered = append(filtered, g)
+			}
+		}
+	} else {
+		filtered = allGlyphs
+	}
+	// Apply search term
+	searchTerm = strings.TrimSpace(searchTerm)
+	var matches []GlyphMatch
+	if searchTerm == "" {
+		// No search term - return all with favorites marked
+		a.favorites.mu.RLock()
+		for _, g := range filtered {
+			matches = append(matches, GlyphMatch{
+				Glyph:      g,
+				Score:      0,
+				IsFavorite: a.favorites.favorites[g.ID],
+			})
+		}
+		a.favorites.mu.RUnlock()
+	} else {
+		// Apply fuzzy matching
+		a.favorites.mu.RLock()
+		for _, g := range filtered {
+			score, ok := fuzzyMatch(searchTerm, g.Name)
+			if ok {
+				matches = append(matches, GlyphMatch{
+					Glyph:      g,
+					Score:      score,
+					IsFavorite: a.favorites.favorites[g.ID],
+				})
+			}
+		}
+		a.favorites.mu.RUnlock()
+		// Sort by favorites first, then by score
+		sort.Slice(matches, func(i, j int) bool {
+			if matches[i].IsFavorite != matches[j].IsFavorite {
+				return matches[i].IsFavorite
+			}
+			return matches[i].Score > matches[j].Score
+		})
+		// Add to search history
+		if searchTerm != "" {
+			a.history.Add(searchTerm)
+		}
+	}
+	// Apply pagination
+	total := len(matches)
+	if limit <= 0 {
+		limit = 50 // Default limit
+	}
+	start := offset
+	end := offset + limit
+	if start > len(matches) {
+		start = len(matches)
+	}
+	if end > len(matches) {
+		end = len(matches)
+	}
+	result := &SearchResult{
+		Glyphs:     matches[start:end],
+		Total:      total,
+		SearchTime: time.Since(startTime).Seconds(),
+		HasMore:    end < total,
+	}
+	return result, nil
+}
+// GetCategories returns all available categories with counts
+func (a *App) GetCategories() map[string]int {
+	a.categories.mu.RLock()
+	defer a.categories.mu.RUnlock()
+	result := make(map[string]int)
+	for cat, ids := range a.categories.categories {
+		result[cat] = len(ids)
+	}
+	return result
+}
+// ToggleFavorite adds or removes a glyph from favorites
+func (a *App) ToggleFavorite(glyphID int) error {
+	a.favorites.mu.Lock()
+	defer a.favorites.mu.Unlock()
+	if a.favorites.favorites[glyphID] {
+		// Remove from favorites
+		_, err := a.db.Exec("DELETE FROM favorites WHERE glyph_id = ?", glyphID)
+		if err != nil {
+			return fmt.Errorf("failed to remove favorite: %w", err)
+		}
+		delete(a.favorites.favorites, glyphID)
+	} else {
+		// Add to favorites
+		_, err := a.db.Exec("INSERT INTO favorites (glyph_id) VALUES (?)", glyphID)
+		if err != nil {
+			return fmt.Errorf("failed to add favorite: %w", err)
+		}
+		a.favorites.favorites[glyphID] = true
+	}
+	return nil
+}
+// GetFavorites returns all favorited glyphs
+func (a *App) GetFavorites() ([]GlyphMatch, error) {
+	a.favorites.mu.RLock()
+	favoriteIDs := make([]int, 0, len(a.favorites.favorites))
+	for id := range a.favorites.favorites {
+		favoriteIDs = append(favoriteIDs, id)
+	}
+	a.favorites.mu.RUnlock()
+	if len(favoriteIDs) == 0 {
+		return []GlyphMatch{}, nil
+	}
+	a.cache.mu.RLock()
+	defer a.cache.mu.RUnlock()
+	var favorites []GlyphMatch
+	idMap := make(map[int]bool)
+	for _, id := range favoriteIDs {
+		idMap[id] = true
+	}
+	for _, g := range a.cache.glyphs {
+		if idMap[g.ID] {
+			favorites = append(favorites, GlyphMatch{
+				Glyph:      g,
+				IsFavorite: true,
+			})
+		}
+	}
+	return favorites, nil
+}
+// GetSearchHistory returns recent searches
+func (a *App) GetSearchHistory() []string {
+	a.history.mu.RLock()
+	defer a.history.mu.RUnlock()
+	result := make([]string, len(a.history.history))
+	copy(result, a.history.history)
+	return result
+}
+// ClearSearchHistory clears the search history
+func (a *App) ClearSearchHistory() {
+	a.history.mu.Lock()
+	defer a.history.mu.Unlock()
+	a.history.history = nil
+}
+// CopyToClipboard copies text to clipboard
+func (a *App) CopyToClipboard(text string) {
+	runtime.ClipboardSetText(a.ctx, text)
+}
+// GetStats returns app statistics
+func (a *App) GetStats() map[string]interface{} {
+	a.cache.mu.RLock()
+	totalGlyphs := len(a.cache.glyphs)
+	a.cache.mu.RUnlock()
+	a.favorites.mu.RLock()
+	totalFavorites := len(a.favorites.favorites)
+	a.favorites.mu.RUnlock()
+	a.categories.mu.RLock()
+	totalCategories := len(a.categories.categories)
+	a.categories.mu.RUnlock()
+	return map[string]interface{}{
+		"totalGlyphs":     totalGlyphs,
+		"totalFavorites":  totalFavorites,
+		"totalCategories": totalCategories,
+		"cacheLoaded":     a.cache.loaded,
+	}
+}
+// Add method for SearchHistory
+func (sh *SearchHistory) Add(term string) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	// Remove if already exists
+	for i, t := range sh.history {
+		if t == term {
+			sh.history = append(sh.history[:i], sh.history[i+1:]...)
+			break
+		}
+	}
+	// Add to front
+	sh.history = append([]string{term}, sh.history...)
+	// Trim to max size
+	if len(sh.history) > sh.maxSize {
+		sh.history = sh.history[:sh.maxSize]
+	}
+}
+</file>
+
+<file path="main.go">
+package main
+import (
+	"embed"
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
+)
+//go:embed all:frontend/dist
+var assets embed.FS
+func main() {
+	// Create an instance of the app structure
+	app := NewApp()
+	// Create application with options
+	err := wails.Run(&options.App{
+		Title:       "Gylte",
+		Width:       572,
+		Height:      900,
+		Frameless:   true,
+		AlwaysOnTop: true,
+		AssetServer: &assetserver.Options{
+			Assets: assets,
+		},
+		BackgroundColour: &options.RGBA{R: 18, G: 18, B: 18, A: 00},
+		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
+		CSSDragProperty:  "--wails-draggable",
+		CSSDragValue:     "drag",
+		Bind: []interface{}{
+			app,
+		},
+		Windows: &windows.Options{
+			WebviewIsTransparent:              true,
+			WindowIsTranslucent:               true,
+			BackdropType:                      windows.Mica,
+			DisablePinchZoom:                  true,
+			DisableWindowIcon:                 true,
+			DisableFramelessWindowDecorations: true,
+			WebviewUserDataPath:               "",
+			WebviewBrowserPath:                "",
+		},
+		Mac: &mac.Options{
+			TitleBar: &mac.TitleBar{
+				TitlebarAppearsTransparent: true,
+				HideTitle:                  true,
+				HideTitleBar:               true,
+				FullSizeContent:            false,
+				UseToolbar:                 false,
+				HideToolbarSeparator:       true,
+			},
+			Appearance:           mac.NSAppearanceNameDarkAqua,
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  true,
+			About: &mac.AboutInfo{
+				Title:   "Gylte",
+				Message: "© 2025 Limp Cheney",
+			},
+		},
+	})
+	if err != nil {
+		println("Error:", err.Error())
+	}
+}
+</file>
+
+<file path="frontend/src/App.svelte">
+<script lang="ts">
+  import { onMount } from "svelte";
+  import AniToast from "./comps/aniToast.svelte";
+  import MonoNF from "./comps/mono-nf.webp";
+  import {
+    CopyToClipboard,
+    GetGlyphs,
+    ToggleFavorite,
+    GetFavorites,
+    GetCategories,
+    GetStats,
+  } from "../wailsjs/go/main/App";
+  import { WindowMinimise, Quit } from "../wailsjs/runtime";
+  import type { main } from "../wailsjs/go/models";
+  // Type definitions
+  interface Glyph {
+    id: number;
+    name: string;
+    glyph: string;
+    category?: string;
+  }
+  interface GlyphMatch extends Glyph {
+    score: number;
+    isFavorite: boolean;
+  }
+  interface SearchResult {
+    glyphs: GlyphMatch[];
+    total: number;
+    searchTime: number;
+    hasMore: boolean;
+    categories?: string[];
+  }
+  // State
+  let searchTerm = "";
+  let selectedCategory = "";
+  let filteredGlyphs: GlyphMatch[] = [];
+  let toastVisible = false;
+  let searchTimeout: NodeJS.Timeout;
+  let isLoading = true;
+  let currentOffset = 0;
+  let hasMore = false;
+  let total = 0;
+  let searchTime = 0;
+  let viewingFavorites = false;
+  // Categories
+  let categories: Record<string, number> = {};
+  let showCategoryFilter = false;
+  // Stats
+  let stats = {
+    totalGlyphs: 0,
+    totalFavorites: 0,
+    totalCategories: 0,
+    cacheLoaded: false,
+  };
+  const LIMIT = 100;
+  // Load initial data
+  onMount(async () => {
+    try {
+      stats = await GetStats();
+      categories = await GetCategories();
+      await loadGlyphs(true);
+      isLoading = false;
+    } catch (error) {
+      console.error("Failed to initialize app:", error);
+      isLoading = false;
+    }
+  });
+  // Load glyphs with pagination
+  const loadGlyphs = async (reset: boolean = false) => {
+    try {
+      if (reset) {
+        currentOffset = 0;
+        filteredGlyphs = [];
+      }
+      const result: SearchResult = await GetGlyphs(
+        searchTerm,
+        selectedCategory,
+        LIMIT,
+        currentOffset
+      );
+      if (reset) {
+        filteredGlyphs = result.glyphs;
+      } else {
+        filteredGlyphs = [...filteredGlyphs, ...result.glyphs];
+      }
+      total = result.total;
+      hasMore = result.hasMore;
+      searchTime = result.searchTime;
+      currentOffset += result.glyphs.length;
+    } catch (error) {
+      console.error("Failed to load glyphs:", error);
+    }
+  };
+  // Handle glyph click (copy to clipboard)
+  const handleGlyphClick = async (glyph: GlyphMatch) => {
+    try {
+      await CopyToClipboard(glyph.glyph);
+      showToast();
+    } catch (error) {
+      console.error("Failed to copy to clipboard:", error);
+    }
+  };
+  // Toggle favorite
+  const handleToggleFavorite = async (glyphId: number, event: Event) => {
+    event.stopPropagation();
+    try {
+      await ToggleFavorite(glyphId);
+      filteredGlyphs = filteredGlyphs.map((g) =>
+        g.id === glyphId ? { ...g, isFavorite: !g.isFavorite } : g
+      );
+      stats = await GetStats();
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+    }
+  };
+  // Load more glyphs (infinite scroll)
+  const loadMore = async () => {
+    if (hasMore && !isLoading) {
+      await loadGlyphs(false);
+    }
+  };
+  // Show toast notification
+  const showToast = () => {
+    toastVisible = true;
+    setTimeout(() => {
+      toastVisible = false;
+    }, 1900);
+  };
+  // Scroll handler for infinite scroll
+  const handleScroll = (event: Event) => {
+    const target = event.target as HTMLElement;
+    const scrollPercentage =
+      (target.scrollTop + target.clientHeight) / target.scrollHeight;
+    if (scrollPercentage > 0.8 && hasMore && !isLoading) {
+      loadMore();
+    }
+  };
+  // Show only favorites
+  const showFavorites = async () => {
+    try {
+      isLoading = true;
+      const favs = await GetFavorites();
+      filteredGlyphs = favs;
+      total = favs.length;
+      hasMore = false;
+      searchTerm = "";
+      selectedCategory = "";
+      viewingFavorites = true;
+      isLoading = false;
+    } catch (error) {
+      console.error("Failed to load favorites:", error);
+      isLoading = false;
+    }
+  };
+  // Handle category change
+  const handleCategoryChange = async (category: string) => {
+    selectedCategory = category;
+    showCategoryFilter = false;
+    viewingFavorites = false;
+    await loadGlyphs(true);
+  };
+  // Clear all filters
+  const clearFilters = async () => {
+    searchTerm = "";
+    selectedCategory = "";
+    viewingFavorites = false;
+    await loadGlyphs(true);
+  };
+  // Reactive search with debouncing
+  $: {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      if (!viewingFavorites) {
+        loadGlyphs(true);
+      }
+    }, 300);
+  }
+</script>
+<div id="app">
+  <!-- Custom Title Bar -->
+  <div class="title-bar draggable">
+    <div class="title draggable">
+      <img src={MonoNF} id="nf-icon" alt="Gylte" width="31" height="31" />
+    </div>
+    <div class="spacer draggable"></div>
+    <div class="window-controls">
+      <button on:click={WindowMinimise} title="Minimize">−</button>
+      <button on:click={Quit} title="Close">×</button>
+    </div>
+  </div>
+  <!-- Search & Filters -->
+  <div class="search-container draggable">
+    <input
+      type="text"
+      class="search-input"
+      placeholder=""
+      bind:value={searchTerm}
+      disabled={isLoading}
+    />
+  </div>
+  <div class="toolbar">
+    <div class="filters">
+      <button
+        class="filter-btn"
+        on:click={() => (showCategoryFilter = !showCategoryFilter)}
+        title="Filter by category"
+      >
+         {selectedCategory || "Categories"}
+      </button>
+      <button
+        class="filter-btn favorites-btn"
+        on:click={showFavorites}
+        title="Show favorites"
+      >
+         {stats.totalFavorites}
+      </button>
+      {#if searchTerm || selectedCategory}
+        <button
+          class="filter-btn clear-btn"
+          on:click={clearFilters}
+          title="Clear filters"
+        >
+          ✕
+        </button>
+      {/if}
+    </div>
+    <div class="stats">
+      <span class="stat-item">{filteredGlyphs.length} / {total}</span>
+      {#if searchTime > 0}
+        <span class="stat-item">{(searchTime * 1000).toFixed(0)}ms</span>
+      {/if}
+    </div>
+  </div>
+  <!-- Category Dropdown -->
+  {#if showCategoryFilter}
+    <div class="category-dropdown">
+      <button
+        class="category-item {selectedCategory === '' ? 'active' : ''}"
+        on:click={() => handleCategoryChange("")}
+      >
+        All Categories
+      </button>
+      {#each Object.entries(categories).sort((a, b) => b[1] - a[1]) as [cat, count]}
+        <button
+          class="category-item {selectedCategory === cat ? 'active' : ''}"
+          on:click={() => handleCategoryChange(cat)}
+        >
+          {cat} <span class="count">({count})</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+  <!-- Loading State -->
+  {#if isLoading && filteredGlyphs.length === 0}
+    <div class="loading">
+      <div class="spinner"></div>
+    </div>
+  {:else}
+    <!-- Glyph Grid -->
+    <div class="glyph-grid-container" on:scroll={handleScroll}>
+      <div class="glyph-grid">
+        {#each filteredGlyphs as item (item.id)}
+          <div
+            class="glyph-card"
+            title={item.name}
+            on:click={() => handleGlyphClick(item)}
+            on:keydown={(e) => e.key === "Enter" && handleGlyphClick(item)}
+            role="button"
+            tabindex="0"
+          >
+            <button
+              class="favorite-btn {item.isFavorite ? 'active' : ''}"
+              on:click={(e) => handleToggleFavorite(item.id, e)}
+              title={item.isFavorite
+                ? "Remove from favorites"
+                : "Add to favorites"}
+            >
+              {item.isFavorite ? "★" : "☆"}
+            </button>
+            <span class="glyph-icon">{item.glyph}</span>
+            <span class="glyph-name">{item.name}</span>
+          </div>
+        {/each}
+      </div>
+      <!-- Load More -->
+      {#if hasMore}
+        <div class="load-more">
+          <button on:click={loadMore}>Load More</button>
+        </div>
+      {/if}
+      <!-- No Results -->
+      {#if filteredGlyphs.length === 0 && !isLoading}
+        <div class="no-results">
+          <p>No glyphs found</p>
+          {#if searchTerm || selectedCategory}
+            <button on:click={clearFilters}>Clear filters</button>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  {/if}
+  <!-- Toast Notification -->
+  {#if toastVisible}
+    <div class="toast">
+      <AniToast width="12" height="12" fill="#45a847" />
+    </div>
+  {/if}
+</div>
+<style>
+  /* ===== GLOBAL RESET ===== */
+  * {
+    box-sizing: border-box;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent;
+  }
+  /* ===== TITLE BAR ===== */
+  .title-bar {
+    display: flex;
+    align-items: center;
+    background: var(--bg-color);
+    justify-content: space-between;
+    padding: 0 8px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    -webkit-app-region: drag;
+  }
+  .title {
+    display: flex;
+    align-items: center;
+    background: #0c0e13;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 6px;
+    padding: 0.4em;
+    margin-top: 1.2em;
+    margin-left: 0.5em;
+    transition: all 210ms ease;
+  }
+  .title:hover {
+    cursor: grab;
+    opacity: 0.9;
+  }
+  .title:active {
+    cursor: grabbing;
+  }
+  .spacer {
+    flex: 1;
+  }
+  .window-controls {
+    display: flex;
+    gap: 8px;
+    background: rgba(5, 5, 5, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 9px;
+    margin-top: 1.2em;
+    -webkit-app-region: no-drag;
+  }
+  .window-controls button {
+    width: 25px;
+    background: none;
+    border: none;
+    color: #8b8b8b;
+    font-size: 19px;
+    cursor: pointer;
+    padding: 0.3em;
+    border-radius: 6px;
+    line-height: 1;
+    transition: all 160ms ease;
+  }
+  .window-controls button:hover {
+    transform: scale(1.12);
+    color: #c5c8c6;
+    background-color: #083c49;
+  }
+  /* Add remaining styles for search, toolbar, grid, etc. */
+  .search-container {
+    padding: 1rem;
+    margin-top: 1empx;
+    background: var(--bg-color);
+  }
+  .search-input {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    width: 40%;
+    padding: 0.75rem;
+    font-size: 0.7rem;
+    border: none;
+    border-radius: 11px;
+    background: rgba(0, 0, 0, 0.2);
+    color: #c5c8c6;
+    backdrop-filter: blur(12px);
+  }
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2rem 0.5rem;
+    font-size: 12px;
+    background: var(--bg-color);
+  }
+  .filters {
+    font-size: 12px;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .filter-btn {
+    font-size: 101%;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    background: rgba(5, 5, 5, 0.5);
+    color: #c5c8c6;
+    cursor: pointer;
+    transition: all 160ms ease-in;
+  }
+  .filter-btn:hover {
+    background: rgba(8, 60, 73, 0.8);
+  }
+  .stats {
+    display: flex;
+    gap: 1rem;
+    color: #8b8b8b;
+    font-size: 0.875rem;
+  }
+  .glyph-grid-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 1rem 1rem;
+    background: var(--bg-color);
+  }
+  .glyph-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    margin-top: 0.5rem;
+    gap: 1rem;
+  }
+  .glyph-card {
+    position: relative;
+    padding: 1rem;
+    border-radius: 8px;
+    background: rgba(5, 5, 5, 0.5);
+    cursor: pointer;
+    transition: all 210ms ease-in;
+    text-align: center;
+    max-height: 100px;
+  }
+  .glyph-card:hover {
+    background: rgba(8, 60, 73, 0.6);
+    transform: translateY(-2px);
+  }
+  .favorite-btn {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 160ms ease;
+  }
+  .favorite-btn:hover,
+  .favorite-btn.active {
+    opacity: 1;
+  }
+  .glyph-icon {
+    display: block;
+    font-size: 2rem;
+    margin-bottom: -1.5rem;
+    transition: all 125ms ease-in;
+  }
+  .glyph-card:hover .glyph-icon {
+    margin-bottom: 0.2rem;
+  }
+  .glyph-name {
+    display: block;
+    font-size: 0.6rem;
+    color: #c0c0c000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal;
+    transition: all 230ms ease-in;
+  }
+  .glyph-card:hover .glyph-name {
+    display: block;
+    color: #c0c0c0;
+  }
+  .loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+  }
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #083c49;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    /* right: 2rem; */
+    padding: 1rem;
+    background: rgba(5, 5, 5, 0.9);
+    border-radius: 11px;
+    backdrop-filter: blur(12px);
+  }
+  .no-results {
+    text-align: center;
+    padding: 2rem;
+    color: #8b8b8b;
+  }
+  .category-dropdown {
+    position: absolute;
+    top: 160px;
+    left: 1rem;
+    background: rgba(5, 5, 5, 0.95);
+    border-radius: 8px;
+    padding: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .category-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #c5c8c6;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 160ms ease;
+  }
+  .category-item:hover,
+  .category-item.active {
+    background: rgba(8, 60, 73, 0.8);
+  }
+  .count {
+    color: #8b8b8b;
+    font-size: 0.875rem;
+  }
+</style>
+</file>
+
+</files>
